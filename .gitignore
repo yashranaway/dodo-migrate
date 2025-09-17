@@ -1,0 +1,7 @@
+node_modules/
+.dodo-migrate/
+artifacts/
+logs/
+.env
+.env.*
+.DS_Store
