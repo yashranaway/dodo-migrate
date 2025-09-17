@@ -23,6 +23,14 @@ Scaffold only. Implementation intentionally omitted.
 4. Plan: compute a migration plan with diffs
 5. Export: emit Dodo-ready artifacts (JSONL/CSV) or call Dodo APIs (future)
 
+## Migration Scope (supported data)
+
+- Products
+- License Keys
+- Associated Files
+- Discount Codes
+- Customers
+
 ## Repository Structure
 
 ```
