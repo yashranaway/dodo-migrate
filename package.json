@@ -1,0 +1,32 @@
+{
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build ./src/index.ts --target node --outfile ./dist/index.js"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.8.6",
+    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
+    "commander": "^14.0.1",
+    "dodopayments": "^2.1.0",
+    "yargs": "^18.0.0"
+  },
+  "name": "dodo-migrate",
+  "version": "1.0.0",
+  "description": "Migrate data from other payment providers to Dodo Payments",
+  "main": "src/index.ts",
+  "keywords": [
+    "dodopayments",
+    "migrate",
+    "payments"
+  ],
+  "author": "Dodo Payments",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/yargs": "^17.0.33"
+  },
+  "bin": {
+    "dodo-migrate": "./dist/index.js"
+  }
+}
