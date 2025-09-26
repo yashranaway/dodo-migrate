@@ -1,5 +1,8 @@
 # Dodo Migrate
 <p align="left">
+  <a href="https://www.npmjs.com/package/dodo-migrate">
+    <img src="https://img.shields.io/npm/v/dodo-migrate?color=cb3837&label=npm&logo=npm" alt="npm version" />
+  </a>
   <a href="https://discord.gg/bYqAp4ayYh">
     <img src="https://img.shields.io/discord/1305511580854779984?label=Join%20Discord&logo=discord" alt="Join Discord" />
   </a>
