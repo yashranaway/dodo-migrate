@@ -1,9 +1,6 @@
 name: Publish to npm on tag
 
 on:
-  push:
-    tags:
-      - 'v*'
   release:
     types: [published]
 
