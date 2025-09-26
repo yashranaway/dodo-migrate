@@ -11,7 +11,7 @@
     "yargs": "^18.0.0"
   },
   "name": "dodo-migrate",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Migrate data from other payment providers to Dodo Payments",
   "main": "src/index.ts",
   "keywords": [

@@ -1,4 +1,3 @@
-dist
 .env
 .gitignore
 run.sh
@@ -6,3 +5,4 @@ run.sh
 .DS_Store
 bun.lock
 bun.lockb
+src/
