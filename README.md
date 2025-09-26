@@ -1,48 +1,115 @@
-# dodo-migrate
-A CLI-first migration toolkit to help teams move content from other payment providers or MoR platforms (e.g., LemonSqueezy, Gumroad, 2Checkout, FastSpring, Stripe, Paddle) into Dodo Payments. Focused on safety, auditability, and repeatable runs.
+# Dodo Migrate
+<p align="left">
+  <a href="https://discord.gg/bYqAp4ayYh">
+    <img src="https://img.shields.io/discord/1305511580854779984?label=Join%20Discord&logo=discord" alt="Join Discord" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License: GPLv3" />
+  </a>
+</p>
 
-Supported providers: [Lemon Squeezy](./docs/lemonsqueezy/README.md)
+Dodo Migrate is a CLI tool designed to help you safely and efficiently migrate your data from popular payment providers into Dodo Payments. Whether you're moving products, customers, or discount codes, Dodo Migrate guides you through a secure, auditable, and repeatable migration process with interactive prompts and sensible defaults.
 
-### Usage:
-Pre-Usage Requirements: Provider's API Key, Dodo Payments API key.  
+**Supported providers:**
+- [x] Lemon Squeezy
+- [ ] Gumroad
+- [ ] 2Checkout
+- [ ] FastSpring
+- [ ] Stripe
+- [ ] Paddle
 
-Installation:
+**Supported models:**
+- [x] Products
+- [ ] Discount codes
+- [ ] Customers
+
+## Contents
+- [Features](#features)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [CLI reference](#cli-reference)
+- [Providers](#providers)
+- [Examples](#examples)
+- [Update / Uninstall](#update--uninstall)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+- Safe, confirm-before-write migration flow
+- Interactive prompts with sensible defaults
+- Works with Dodo Payments test or live environments
+- Incremental, repeatable runs
+
+## Requirements
+- Node.js ≥ 18 (for native `fetch` used by the CLI)
+- Provider API key and Dodo Payments API key
+
+## Install
 ```
 npm i -g dodo-migrate
 ```
 
-Usage:
-```
-dodo-migrate [provider] [arguments (optional)]
-```
-
-Example (to move contents from Lemon Squeezy to Dodo Payments):
+## Quick start
+Migrate from Lemon Squeezy to Dodo Payments:
 ```
 dodo-migrate lemonsqueezy
 ```
-It will then prompt you to enter your API keys and then other required information.
+You’ll be prompted for any missing inputs (API keys, brand selection, environment).
 
-<br/>
+## CLI reference
+Global usage:
+```
+dodo-migrate <provider> [options]
+```
 
-Update:
+Options (all optional; interactive prompts will fill in when omitted):
+
+| option | values | description |
+| --- | --- | --- |
+| `--provider-api-key` | string | Provider API key (e.g., Lemon Squeezy) |
+| `--dodo-api-key` | string | Dodo Payments API key |
+| `--mode` | `test_mode` / `live_mode` | Dodo Payments environment (default: `test_mode`) |
+| `--dodo-brand-id` | string | Target Dodo Payments brand ID |
+
+Helpful commands:
+```
+dodo-migrate --help
+dodo-migrate lemonsqueezy --help
+```
+
+## Providers
+Detailed, provider-specific docs:
+- [Lemon Squeezy → Dodo Payments](./docs/lemonsqueezy/README.md)
+
+## Examples
+- Minimal migration from Lemon Squeezy (interactive):
+```
+dodo-migrate lemonsqueezy
+```
+
+- Non-interactive run (all flags provided):
+```
+dodo-migrate lemonsqueezy \
+  --provider-api-key=lsq_XXXXXXXXXXXXXXXX \
+  --dodo-api-key=dp_XXXXXXXXXXXXXXXX \
+  --mode=test_mode \
+  --dodo-brand-id=brand_XXXXXX
+```
+
+## Update / Uninstall
 ```
 npm update -g dodo-migrate
-```
-
-Uninstall
-```
 npm uninstall -g dodo-migrate
 ```
 
-
-### Detailed documentation:
-You can find the individual documentation for each of the currently available providers below:  
-- [Lemon Squeezy](./docs/lemonsqueezy/README.md)
-
-### Roadmap:
+## Roadmap
 - Add more providers
-- Add more data options to move from current providers
+- Add more data options per provider
 
-### Contributing
-Are you interested in contributing this repository?  
-Check out the [contributing.md](./contributing.md) to learn more about the various guidelines to contribute!
+## Contributing
+Interested in contributing? See [contributing.md](./contributing.md) for guidelines.
+
+## License
+GPL-3.0 © Dodo Payments. See [LICENSE](./LICENSE).
