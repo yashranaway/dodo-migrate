@@ -170,7 +170,8 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                                 discount: 0,
                                 purchasing_power_parity: false,
                                 type: 'recurring_price',
-                                billing_period: interval === 'month' ? 'monthly' : 'yearly'
+                                billing_period: interval === 'month' ? 'monthly' : 'yearly',
+                                payment_frequency_count: 1
                             },
                             brand_id: brand_id
                         }
