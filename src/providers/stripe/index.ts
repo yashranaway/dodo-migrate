@@ -53,9 +53,7 @@ export default {
             default: 'test_mode'
         });
 
-        const stripe = new Stripe(PROVIDER_API_KEY, {
-            apiVersion: '2025-02-24.acacia',
-        });
+        const stripe = new Stripe(PROVIDER_API_KEY);
 
         try {
             await stripe.accounts.retrieve();
@@ -154,6 +152,11 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                 const isRecurring = price.type === 'recurring';
                 
                 if (isRecurring) {
+                    const interval = price.recurring?.interval;
+                    if (interval !== 'month' && interval !== 'year') {
+                        console.log(`[ERROR] Unsupported billing interval "${interval}" for product ${product.id}; skipping to avoid creating a wrong plan`);
+                        continue;
+                    }
                     ProductsToMigrate.push({
                         type: 'subscription_product',
                         data: {
@@ -166,8 +169,7 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                                 discount: 0,
                                 purchasing_power_parity: false,
                                 type: 'recurring_price',
-                                billing_period: price.recurring?.interval === 'month' ? 'monthly' : 
-                                               price.recurring?.interval === 'year' ? 'yearly' : 'monthly'
+                                billing_period: interval === 'month' ? 'monthly' : 'yearly'
                             },
                             brand_id: brand_id
                         }
