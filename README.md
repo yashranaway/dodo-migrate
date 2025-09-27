@@ -15,16 +15,16 @@ Dodo Migrate is a CLI tool designed to help you safely and efficiently migrate y
 
 **Supported providers:**
 - [x] Lemon Squeezy
+- [x] Stripe
 - [ ] Gumroad
 - [ ] 2Checkout
 - [ ] FastSpring
-- [ ] Stripe
 - [ ] Paddle
 
 **Supported models:**
 - [x] Products
-- [ ] Discount codes
-- [ ] Customers
+- [x] Discount codes
+- [x] Customers
 
 ## Contents
 - [Features](#features)
@@ -59,7 +59,11 @@ Migrate from Lemon Squeezy to Dodo Payments:
 ```
 dodo-migrate lemonsqueezy
 ```
-You’ll be prompted for any missing inputs (API keys, brand selection, environment).
+Migrate from Stripe to Dodo Payments:
+```
+dodo-migrate stripe
+```
+You'll be prompted for any missing inputs (API keys, brand selection, environment).
 
 ## CLI reference
 Global usage:
@@ -85,11 +89,17 @@ dodo-migrate lemonsqueezy --help
 ## Providers
 Detailed, provider-specific docs:
 - [Lemon Squeezy → Dodo Payments](./docs/lemonsqueezy/README.md)
+- [Stripe → Dodo Payments](./docs/stripe/README.md)
 
 ## Examples
 - Minimal migration from Lemon Squeezy (interactive):
 ```
 dodo-migrate lemonsqueezy
+```
+
+- Minimal migration from Stripe (interactive):
+```
+dodo-migrate stripe
 ```
 
 - Non-interactive run (all flags provided):
@@ -99,6 +109,13 @@ dodo-migrate lemonsqueezy \
   --dodo-api-key=dp_XXXXXXXXXXXXXXXX \
   --mode=test_mode \
   --dodo-brand-id=brand_XXXXXX
+
+dodo-migrate stripe \
+  --provider-api-key=sk_test_XXXXXXXXXXXXXXXX \
+  --dodo-api-key=dp_XXXXXXXXXXXXXXXX \
+  --mode=test_mode \
+  --dodo-brand-id=brand_XXXXXX \
+  --migrate-types=products,coupons
 ```
 
 ## Update / Uninstall

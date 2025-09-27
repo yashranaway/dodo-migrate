@@ -3,6 +3,7 @@ import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs';
 
 import MigrateLemonSqueezy from './providers/lemonsqueezy';
+import MigrateStripe from './providers/stripe';
 
 // Silently check for the latest version of the package
 // Added a try catch block to ensure that any errors during the fetch process (example, NPM is down) do not crash the application
@@ -29,4 +30,5 @@ yargs(hideBin(process.argv))
     .alias('v', 'version')
     // Add other providers command files after this
     .command(MigrateLemonSqueezy)
+    .command(MigrateStripe)
     .argv;
