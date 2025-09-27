@@ -163,15 +163,14 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                             name: product.name || 'Unnamed Product',
                             description: product.description || '',
                             tax_category: 'saas',
-                            type: 'subscription_product',
+                            type: 'subscription',
                             price: {
                                 currency: price.currency.toUpperCase(),
                                 price: price.unit_amount || 0,
                                 discount: 0,
                                 purchasing_power_parity: false,
                                 type: 'recurring_price',
-                                billing_period: interval === 'month' ? 'monthly' : 'yearly',
-                                payment_frequency_count: 1
+                                billing_period: interval === 'month' ? 'monthly' : 'yearly'
                             },
                             brand_id: brand_id
                         }
@@ -183,7 +182,7 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                             name: product.name || 'Unnamed Product',
                             description: product.description || '',
                             tax_category: 'saas',
-                            type: 'one_time_product',
+                            type: 'one_time',
                             price: {
                                 currency: price.currency.toUpperCase(),
                                 price: price.unit_amount || 0,
