@@ -163,6 +163,7 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                             name: product.name || 'Unnamed Product',
                             description: product.description || '',
                             tax_category: 'saas',
+                            type: 'subscription_product',
                             price: {
                                 currency: price.currency.toUpperCase(),
                                 price: price.unit_amount || 0,
@@ -181,6 +182,7 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                             name: product.name || 'Unnamed Product',
                             description: product.description || '',
                             tax_category: 'saas',
+                            type: 'one_time_product',
                             price: {
                                 currency: price.currency.toUpperCase(),
                                 price: price.unit_amount || 0,
