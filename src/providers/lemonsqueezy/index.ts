@@ -227,6 +227,11 @@ export default {
                 const unitPriceCents = convertToCents(priceAttrs.unit_price, priceAttrs.unit_price_decimal);
                 const renewalIntervalQuantity = priceAttrs.renewal_interval_quantity || 1;
                 const renewalIntervalUnit = priceAttrs.renewal_interval_unit || 'month';
+                
+                // Check if this is a fixed-term subscription
+                // For now, assume evergreen (indefinite) subscriptions by default
+                // TODO: Add logic to detect fixed-term subscriptions when indicators are available
+                const isFixedTerm = false; // Placeholder - implement detection logic as needed
 
                 // Validate unit price
                 if (unitPriceCents <= 0) {
@@ -276,7 +281,7 @@ export default {
                             payment_frequency_interval: dodoIntervalUnit,
                             payment_frequency_count: renewalIntervalQuantity, // billing cadence
                             subscription_period_interval: dodoIntervalUnit,
-                            subscription_period_count: renewalIntervalQuantity || 1
+                            ...(isFixedTerm ? { subscription_period_count: renewalIntervalQuantity || 1 } : {})
                         },
                         brand_id: brand_id
                     }
