@@ -275,8 +275,8 @@ export default {
                             billing_period: billingPeriod,
                             payment_frequency_interval: dodoIntervalUnit,
                             payment_frequency_count: renewalIntervalQuantity, // billing cadence
-                            // subscription_period_count omitted for indefinite/recurring subscription
-                            subscription_period_interval: dodoIntervalUnit
+                            subscription_period_interval: dodoIntervalUnit,
+                            subscription_period_count: renewalIntervalQuantity || 1
                         },
                         brand_id: brand_id
                     }
