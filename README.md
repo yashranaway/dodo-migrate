@@ -59,13 +59,15 @@ Migrate from Lemon Squeezy to Dodo Payments:
 ```
 dodo-migrate lemonsqueezy
 ```
+
 Migrate from Stripe to Dodo Payments:
+```
+dodo-migrate stripe
+```
+
 Migrate from Cashfree to Dodo Payments:
 ```
 dodo-migrate cashfree
-```
-```
-dodo-migrate stripe
 ```
 You'll be prompted for any missing inputs (API keys, brand selection, environment).
 
