@@ -295,7 +295,7 @@ async function migrateProducts(ctx: CashfreeContext) {
 
         console.log('\n[LOG] These are the products to be migrated:');
         ProductsToMigrate.forEach((product, index) => {
-            const price = product.data.price.price / 100;
+            const price = product.data.price.price;
             const type = product.type === 'one_time_product' ? 'One Time' : 'Subscription';
             const billing = product.type === 'subscription_product' ? ` (${product.data.price.billing_period})` : '';
             console.log(`${index + 1}. ${product.data.name} - ${product.data.price.currency} ${price.toFixed(2)} (${type}${billing})`);
@@ -355,8 +355,8 @@ async function migrateCoupons(ctx: CashfreeContext) {
         for (const offer of offers) {
             const code = offer?.code || offer?.offer_code || offer?.name;
             const name = offer?.name || code || 'Unnamed Offer';
-            const discountType = (offer?.type || offer?.discount_type || '').toString();
-            const isPercentage = discountType.toLowerCase().includes('percent');
+            const discountType = (offer?.type || offer?.discount_type || '').toString().toLowerCase().trim();
+            const isPercentage = discountType === 'percent' || discountType === 'percentage';
             const percent = Number(offer?.percentage || offer?.percent_off || 0);
             const amount = Number(offer?.amount || offer?.amount_off || 0);
             const currency = (offer?.currency || 'USD').toString().toUpperCase();
@@ -368,7 +368,7 @@ async function migrateCoupons(ctx: CashfreeContext) {
                 code,
                 name,
                 discount_type: isPercentage ? 'percentage' : 'fixed_amount',
-                discount_value: isPercentage ? percent : amount,
+                discount_value: isPercentage ? percent : Math.round(amount * 100),
                 currency: isPercentage ? undefined : currency,
                 brand_id: ctx.brand_id
             });
