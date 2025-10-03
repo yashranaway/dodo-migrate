@@ -142,7 +142,7 @@ export default {
                         'Content-Type': 'application/json'
                     }
                 } as any);
-                if (!ping.ok && ping.status !== 401 && ping.status !== 403 && ping.status !== 404) {
+                if (!ping.ok && ping.status !== 404) {
                     const text = await ping.text();
                     throw new Error(`Cashfree sandbox connectivity unexpected: HTTP ${ping.status} - ${text}`);
                 }
@@ -247,6 +247,11 @@ async function migrateProducts(ctx: CashfreeContext) {
             let billing_period: 'monthly' | 'yearly' | undefined;
             if (interval.toLowerCase().startsWith('month')) billing_period = 'monthly';
             else if (interval.toLowerCase().startsWith('year')) billing_period = 'yearly';
+            
+            // Warn about unsupported intervals
+            if (!billing_period && interval.toLowerCase() !== 'month' && interval.toLowerCase() !== 'year') {
+                console.warn(`[WARN] Unsupported billing interval '${interval}' for plan '${plan?.plan_id || plan?.id || 'unknown'}'. Treating as one-time product.`);
+            }
 
             const isRecurring = Boolean(billing_period);
 
