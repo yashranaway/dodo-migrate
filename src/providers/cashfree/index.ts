@@ -255,6 +255,9 @@ async function migrateProducts(ctx: CashfreeContext) {
 
             const isRecurring = Boolean(billing_period);
 
+            // Convert Cashfree major units to Dodo Payments minor units
+            const priceInMinorUnits = Math.round((Number(amount) || 0) * 100);
+
             if (isRecurring) {
                 ProductsToMigrate.push({
                     type: 'subscription_product',
@@ -264,7 +267,7 @@ async function migrateProducts(ctx: CashfreeContext) {
                         tax_category: 'saas',
                         price: {
                             currency,
-                            price: Number(amount) || 0,
+                            price: priceInMinorUnits,
                             discount: 0,
                             purchasing_power_parity: false,
                             type: 'recurring_price',
@@ -282,7 +285,7 @@ async function migrateProducts(ctx: CashfreeContext) {
                         tax_category: 'saas',
                         price: {
                             currency,
-                            price: Number(amount) || 0,
+                            price: priceInMinorUnits,
                             discount: 0,
                             purchasing_power_parity: false,
                             type: 'one_time_price'
