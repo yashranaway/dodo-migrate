@@ -203,7 +203,8 @@ function buildAuthHeaders(ctx: CashfreeContext): Record<string, string> {
     if (ctx.token) {
         return {
             'Authorization': `Bearer ${ctx.token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-api-version': ctx.apiVersion
         };
     }
     return {
