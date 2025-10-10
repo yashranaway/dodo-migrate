@@ -92,12 +92,23 @@ export default {
         });
 
         // Verify Polar.sh connection and fetch available organizations
-        let orgsResult;
+        const organizations: any[] = [];
         try {
-            orgsResult = await polar.organizations.list({});
+            let page = 1;
+            let hasMore = true;
+            while (hasMore) {
+                const response = await polar.organizations.list({ page });
+                if (response.result?.items?.length) {
+                    organizations.push(...response.result.items);
+                }
+                // Check if there are more pages based on pagination metadata
+                const pagination = response.result?.pagination;
+                hasMore = pagination ? page < pagination.maxPage : false;
+                page++;
+            }
             console.log('[LOG] Successfully connected to Polar.sh');
             
-            if (orgsResult.result.items.length === 0) {
+            if (organizations.length === 0) {
                 console.log('[ERROR] No organizations found for this access token');
                 console.log('[ERROR] Please check your Organization Access Token at https://polar.sh/settings/tokens');
                 process.exit(1);
@@ -123,9 +134,9 @@ export default {
         // Select the Polar.sh organization to migrate from
         let organization_id = argv['polar-organization-id'];
         if (!organization_id) {
-            if (orgsResult.result.items.length === 1) {
-                organization_id = orgsResult.result.items[0].id;
-                console.log(`[LOG] Using organization: ${orgsResult.result.items[0].name}`);
+            if (organizations.length === 1) {
+                organization_id = organizations[0].id;
+                console.log(`[LOG] Using organization: ${organizations[0].name}`);
             } else {
                 if (!isInteractive) {
                     console.log('[ERROR] Multiple Polar.sh organizations detected. Please provide --polar-organization-id flag.');
@@ -133,7 +144,7 @@ export default {
                 }
                 organization_id = await select({
                     message: 'Select your Polar.sh organization:',
-                    choices: orgsResult.result.items.map((org) => ({
+                    choices: organizations.map((org: any) => ({
                         name: org.name || 'Unnamed Organization',
                         value: org.id,
                     })),
@@ -223,9 +234,19 @@ async function migrateProducts(polar: Polar, client: DodoPayments, organization_
     
     try {
         console.log('[LOG] Fetching products from Polar.sh...');
-        let productsResponse;
+        const products: any[] = [];
         try {
-            productsResponse = await polar.products.list({ organizationId: organization_id });
+            let page = 1;
+            let hasMore = true;
+            while (hasMore) {
+                const response = await polar.products.list({ organizationId: organization_id, page });
+                if (response.result?.items?.length) {
+                    products.push(...response.result.items);
+                }
+                const pagination = response.result?.pagination;
+                hasMore = pagination ? page < pagination.maxPage : false;
+                page++;
+            }
         } catch (error: any) {
             // Check for rate limiting (429 Too Many Requests)
             if (error.statusCode === 429 || error.status === 429) {
@@ -235,7 +256,6 @@ async function migrateProducts(polar: Polar, client: DodoPayments, organization_
             }
             throw error;
         }
-        const products = productsResponse.result.items || [];
         
         if (products.length === 0) {
             console.log('[LOG] No products found in Polar.sh. Skipping products migration.');
@@ -334,7 +354,7 @@ async function migrateProducts(polar: Polar, client: DodoPayments, organization_
                             },
                             brand_id: brand_id
                         },
-                        benefits: (product.benefits || []).map(b => ({ description: b.description }))
+                        benefits: (product.benefits || []).map((b: any) => ({ description: b.description }))
                     });
                 } else {
                     // One-time product
@@ -354,7 +374,7 @@ async function migrateProducts(polar: Polar, client: DodoPayments, organization_
                             },
                             brand_id: brand_id
                         },
-                        benefits: (product.benefits || []).map(b => ({ description: b.description }))
+                        benefits: (product.benefits || []).map((b: any) => ({ description: b.description }))
                     });
                 }
             }
@@ -442,9 +462,19 @@ async function migrateDiscounts(polar: Polar, client: DodoPayments, organization
     
     try {
         console.log('[LOG] Fetching discounts from Polar.sh...');
-        let discountsResponse;
+        const discounts: any[] = [];
         try {
-            discountsResponse = await polar.discounts.list({ organizationId: organization_id });
+            let page = 1;
+            let hasMore = true;
+            while (hasMore) {
+                const response = await polar.discounts.list({ organizationId: organization_id, page });
+                if (response.result?.items?.length) {
+                    discounts.push(...response.result.items);
+                }
+                const pagination = response.result?.pagination;
+                hasMore = pagination ? page < pagination.maxPage : false;
+                page++;
+            }
         } catch (error: any) {
             // Check for rate limiting (429 Too Many Requests)
             if (error.statusCode === 429 || error.status === 429) {
@@ -454,7 +484,6 @@ async function migrateDiscounts(polar: Polar, client: DodoPayments, organization
             }
             throw error;
         }
-        const discounts = discountsResponse.result.items || [];
         
         if (discounts.length === 0) {
             console.log('[LOG] No discounts found in Polar.sh. Skipping discounts migration.');
@@ -624,9 +653,19 @@ async function migrateCustomers(polar: Polar, client: DodoPayments, organization
     
     try {
         console.log('[LOG] Fetching customers from Polar.sh...');
-        let customersResponse;
+        const customers: any[] = [];
         try {
-            customersResponse = await polar.customers.list({ organizationId: organization_id });
+            let page = 1;
+            let hasMore = true;
+            while (hasMore) {
+                const response = await polar.customers.list({ organizationId: organization_id, page });
+                if (response.result?.items?.length) {
+                    customers.push(...response.result.items);
+                }
+                const pagination = response.result?.pagination;
+                hasMore = pagination ? page < pagination.maxPage : false;
+                page++;
+            }
         } catch (error: any) {
             // Check for rate limiting (429 Too Many Requests)
             if (error.statusCode === 429 || error.status === 429) {
@@ -636,7 +675,6 @@ async function migrateCustomers(polar: Polar, client: DodoPayments, organization
             }
             throw error;
         }
-        const customers = customersResponse.result.items || [];
         
         if (customers.length === 0) {
             console.log('[LOG] No customers found in Polar.sh. Skipping customers migration.');
