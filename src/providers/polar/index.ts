@@ -1,6 +1,6 @@
 import { Polar } from '@polar-sh/sdk';
 import DodoPayments from 'dodopayments';
-import { input, select, checkbox } from '@inquirer/prompts';
+import { input, select, checkbox, password } from '@inquirer/prompts';
 
 export default {
     command: 'polar [arguments]',
@@ -57,9 +57,10 @@ export default {
                 console.log('[ERROR] --provider-api-key required in non-interactive mode');
                 process.exit(1);
             }
-            PROVIDER_API_KEY = await input({
+            PROVIDER_API_KEY = (await password({
                 message: 'Enter your Polar.sh Organization Access Token:',
-            });
+                mask: '*'
+            })).trim();
         }
 
         if (!DODO_API_KEY) {
@@ -67,9 +68,10 @@ export default {
                 console.log('[ERROR] --dodo-api-key required in non-interactive mode');
                 process.exit(1);
             }
-            DODO_API_KEY = await input({
+            DODO_API_KEY = (await password({
                 message: 'Enter your Dodo Payments API key:',
-            });
+                mask: '*'
+            })).trim();
         }
 
         if (!MODE || MODE === 'select') {
@@ -303,8 +305,8 @@ async function migrateProducts(polar: Polar, client: DodoPayments, organization_
                 
                 // Type narrowing: Extract price amount and currency from Polar's discriminated union
                 // TypeScript needs runtime checks to access properties of union types
-                const priceAmount = 'priceAmount' in price ? price.priceAmount : 0;
-                const priceCurrency = 'priceCurrency' in price ? price.priceCurrency : 'usd';
+                const priceAmount = typeof price.priceAmount === 'number' ? price.priceAmount : 0;
+                const priceCurrency = price.priceCurrency || 'usd';
                 
                 // Create descriptive product names when splitting variants
                 // Single price: "Pro Plan"
@@ -410,14 +412,19 @@ async function migrateProducts(polar: Polar, client: DodoPayments, organization_
         console.log('\n=====================================');
         
         // Ask for confirmation before creating products
-        const { select } = await import('@inquirer/prompts');
-        const shouldProceed = await select({
-            message: `Proceed with migrating ${productsToMigrate.length} products to Dodo Payments?`,
-            choices: [
-                { name: 'Yes', value: 'yes' },
-                { name: 'No', value: 'no' }
-            ]
-        });
+        let shouldProceed = 'yes';
+        if (process.stdin.isTTY) {
+            const { select } = await import('@inquirer/prompts');
+            shouldProceed = await select({
+                message: `Proceed with migrating ${productsToMigrate.length} products to Dodo Payments?`,
+                choices: [
+                    { name: 'Yes', value: 'yes' },
+                    { name: 'No', value: 'no' }
+                ]
+            });
+        } else {
+            console.log('[LOG] Non-interactive mode: proceeding with products migration automatically');
+        }
         
         if (shouldProceed !== 'yes') {
             console.log('[LOG] Products migration cancelled by user.');
@@ -583,14 +590,19 @@ async function migrateDiscounts(polar: Polar, client: DodoPayments, organization
         console.log('\n=====================================');
         
         // Ask for confirmation before creating discounts
-        const { select } = await import('@inquirer/prompts');
-        const shouldProceed = await select({
-            message: `Proceed with migrating ${discountsToMigrate.length} discounts to Dodo Payments?`,
-            choices: [
-                { name: 'Yes', value: 'yes' },
-                { name: 'No', value: 'no' }
-            ]
-        });
+        let shouldProceed = 'yes';
+        if (process.stdin.isTTY) {
+            const { select } = await import('@inquirer/prompts');
+            shouldProceed = await select({
+                message: `Proceed with migrating ${discountsToMigrate.length} discounts to Dodo Payments?`,
+                choices: [
+                    { name: 'Yes', value: 'yes' },
+                    { name: 'No', value: 'no' }
+                ]
+            });
+        } else {
+            console.log('[LOG] Non-interactive mode: proceeding with discounts migration automatically');
+        }
         
         if (shouldProceed !== 'yes') {
             console.log('[LOG] Discounts migration cancelled by user.');
@@ -702,7 +714,7 @@ async function migrateCustomers(polar: Polar, client: DodoPayments, organization
             const transformedCustomer: CustomerToMigrate = {
                 email: customer.email,
                 name: customer.name || '',
-                phone: '', // Polar doesn't store phone numbers
+                ...(customer.phone ? { phone: customer.phone } : {}),
                 address: {
                     line1: customer.billingAddress?.line1 || '',
                     line2: customer.billingAddress?.line2 || '',
@@ -747,14 +759,19 @@ async function migrateCustomers(polar: Polar, client: DodoPayments, organization
         console.log('\n=====================================');
         
         // Ask for confirmation before creating customers
-        const { select } = await import('@inquirer/prompts');
-        const shouldProceed = await select({
-            message: `Proceed with migrating ${customersToMigrate.length} customers to Dodo Payments?`,
-            choices: [
-                { name: 'Yes', value: 'yes' },
-                { name: 'No', value: 'no' }
-            ]
-        });
+        let shouldProceed = 'yes';
+        if (process.stdin.isTTY) {
+            const { select } = await import('@inquirer/prompts');
+            shouldProceed = await select({
+                message: `Proceed with migrating ${customersToMigrate.length} customers to Dodo Payments?`,
+                choices: [
+                    { name: 'Yes', value: 'yes' },
+                    { name: 'No', value: 'no' }
+                ]
+            });
+        } else {
+            console.log('[LOG] Non-interactive mode: proceeding with customers migration automatically');
+        }
         
         if (shouldProceed !== 'yes') {
             console.log('[LOG] Customers migration cancelled by user.');
