@@ -713,16 +713,25 @@ async function migrateCustomers(polar: Polar, client: DodoPayments, organization
             
             const transformedCustomer: CustomerToMigrate = {
                 email: customer.email,
-                name: customer.name || '',
+                ...(customer.name ? { name: customer.name } : {}),
                 ...(customer.phone ? { phone: customer.phone } : {}),
-                address: {
-                    line1: customer.billingAddress?.line1 || '',
-                    line2: customer.billingAddress?.line2 || '',
-                    city: customer.billingAddress?.city || '',
-                    state: customer.billingAddress?.state || '',
-                    postal_code: customer.billingAddress?.postalCode || '',
-                    country: customer.billingAddress?.country || ''
-                },
+                ...((customer.billingAddress && (
+                    customer.billingAddress.line1 ||
+                    customer.billingAddress.line2 ||
+                    customer.billingAddress.city ||
+                    customer.billingAddress.state ||
+                    customer.billingAddress.postalCode ||
+                    customer.billingAddress.country
+                )) ? {
+                    address: {
+                        ...(customer.billingAddress.line1 ? { line1: customer.billingAddress.line1 } : {}),
+                        ...(customer.billingAddress.line2 ? { line2: customer.billingAddress.line2 } : {}),
+                        ...(customer.billingAddress.city ? { city: customer.billingAddress.city } : {}),
+                        ...(customer.billingAddress.state ? { state: customer.billingAddress.state } : {}),
+                        ...(customer.billingAddress.postalCode ? { postal_code: customer.billingAddress.postalCode } : {}),
+                        ...(customer.billingAddress.country ? { country: customer.billingAddress.country } : {})
+                    }
+                } : {}),
                 brand_id: brand_id,
                 // Metadata structure for data reconciliation and audit trail
                 // This enables linking migrated Dodo customers back to Polar records
