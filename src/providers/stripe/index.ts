@@ -314,7 +314,7 @@ async function migrateCoupons(stripe: Stripe, client: DodoPayments, brand_id: st
 
         console.log('\n[LOG] These are the coupons to be migrated:');
         CouponsToMigrate.forEach((coupon, index) => {
-            console.log(`${index + 1}. ${coupon.name} (${coupon.code}) - ${coupon.amount}% discount`);
+            console.log(`${index + 1}. ${coupon.name} (${coupon.code}) - ${coupon.amount / 100}% discount`);
         });
 
         const migrateCoupons = await select({
