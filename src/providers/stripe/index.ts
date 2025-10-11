@@ -153,10 +153,22 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                 
                 if (isRecurring) {
                     const interval = price.recurring?.interval;
+                    const intervalCount = price.recurring?.interval_count || 1;
+                    
                     if (interval !== 'month' && interval !== 'year') {
                         console.log(`[ERROR] Unsupported billing interval "${interval}" for product ${product.id}; skipping to avoid creating a wrong plan`);
                         continue;
                     }
+                    
+                    // Map interval to Dodo format
+                    const intervalMap: Record<string, string> = {
+                        'day': 'Day',
+                        'week': 'Week',
+                        'month': 'Month',
+                        'year': 'Year'
+                    };
+                    const paymentFrequencyInterval = intervalMap[interval];
+                    
                     ProductsToMigrate.push({
                         type: 'subscription_product',
                         data: {
@@ -169,9 +181,18 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                                 discount: 0,
                                 purchasing_power_parity: false,
                                 type: 'recurring_price',
-                                billing_period: interval === 'month' ? 'monthly' : 'yearly'
+                                billing_period: interval === 'month' ? 'monthly' : 'yearly',
+                                payment_frequency_interval: paymentFrequencyInterval,
+                                payment_frequency_count: intervalCount,
+                                subscription_period_interval: paymentFrequencyInterval,
+                                subscription_period_count: intervalCount
                             },
-                            brand_id: brand_id
+                            brand_id: brand_id,
+                            metadata: {
+                                stripe_price_id: price.id,
+                                stripe_product_id: product.id,
+                                migrated_from: 'stripe'
+                            }
                         }
                     });
                 } else {
@@ -188,7 +209,12 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                                 purchasing_power_parity: false,
                                 type: 'one_time_price'
                             },
-                            brand_id: brand_id
+                            brand_id: brand_id,
+                            metadata: {
+                                stripe_price_id: price.id,
+                                stripe_product_id: product.id,
+                                migrated_from: 'stripe'
+                            }
                         }
                     });
                 }
@@ -259,30 +285,26 @@ async function migrateCoupons(stripe: Stripe, client: DodoPayments, brand_id: st
                 continue;
             }
 
-            let discountType: 'percentage' | 'fixed_amount';
-            let discountValue: number;
-
+            // Dodo Payments only supports percentage discounts
+            // Note: Stripe stores percent_off as integer (15 for 15%)
+            // Dodo Payments expects amount multiplied by 100 (1500 for 15%)
             if (coupon.percent_off) {
-                discountType = 'percentage';
-                discountValue = coupon.percent_off;
+                CouponsToMigrate.push({
+                    code: coupon.id,
+                    name: coupon.name || coupon.id,
+                    type: 'percentage',
+                    amount: coupon.percent_off * 100, // Convert: 15 -> 1500, 20 -> 2000, etc.
+                    usage_limit: coupon.max_redemptions || null,
+                    expires_at: coupon.redeem_by ? new Date(coupon.redeem_by * 1000).toISOString() : null,
+                    brand_id: brand_id
+                });
             } else if (coupon.amount_off) {
-                discountType = 'fixed_amount';
-                discountValue = coupon.amount_off;
+                console.log(`[LOG] Skipping coupon ${coupon.id} (${coupon.name || coupon.id}) - Dodo Payments only supports percentage discounts, not fixed amount discounts`);
+                continue;
             } else {
                 console.log(`[LOG] Skipping coupon ${coupon.id} - no discount value found`);
                 continue;
             }
-
-            CouponsToMigrate.push({
-                code: coupon.id,
-                name: coupon.name || coupon.id,
-                discount_type: discountType,
-                discount_value: discountValue,
-                currency: coupon.currency?.toUpperCase() || 'USD',
-                usage_limit: coupon.max_redemptions || null,
-                expires_at: coupon.redeem_by ? new Date(coupon.redeem_by * 1000).toISOString() : null,
-                brand_id: brand_id
-            });
         }
 
         if (CouponsToMigrate.length === 0) {
@@ -292,10 +314,7 @@ async function migrateCoupons(stripe: Stripe, client: DodoPayments, brand_id: st
 
         console.log('\n[LOG] These are the coupons to be migrated:');
         CouponsToMigrate.forEach((coupon, index) => {
-            const discount = coupon.discount_type === 'percentage' 
-                ? `${coupon.discount_value}%` 
-                : `${coupon.currency} ${(coupon.discount_value / 100).toFixed(2)}`;
-            console.log(`${index + 1}. ${coupon.name} (${coupon.code}) - ${discount} discount`);
+            console.log(`${index + 1}. ${coupon.name} (${coupon.code}) - ${coupon.amount}% discount`);
         });
 
         const migrateCoupons = await select({
