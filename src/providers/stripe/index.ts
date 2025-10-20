@@ -186,7 +186,7 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                                 payment_frequency_interval: paymentFrequencyInterval,
                                 payment_frequency_count: intervalCount,
                                 subscription_period_interval: paymentFrequencyInterval,
-                                subscription_period_count: 120  // 10 years for evergreen subscriptions
+                                subscription_period_count: Math.min(120, paymentFrequencyInterval === 'Year' ? 20 : paymentFrequencyInterval === 'Month' ? 240 : paymentFrequencyInterval === 'Week' ? 1040 : 7300)
                             },
                             brand_id: brand_id,
                             metadata: {

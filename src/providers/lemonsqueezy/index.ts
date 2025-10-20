@@ -366,6 +366,12 @@ export default {
                         renewalIntervalUnit.toLowerCase() === 'month' ? 'monthly' :
                         renewalIntervalUnit.toLowerCase() === 'year' ? 'yearly' : null;
 
+                // Determine a safe evergreen subscription term capped at Dodo's 20-year maximum
+                const subscriptionIntervalUnit = mapIntervalUnit(renewalIntervalUnit);
+                const maxByInterval: Record<string, number> = { Year: 20, Month: 240, Week: 1040, Day: 7300 };
+                const evergreenDesiredCount = 120; // 10 years desired evergreen
+                const subscriptionPeriodCount = Math.min(evergreenDesiredCount, maxByInterval[subscriptionIntervalUnit] ?? evergreenDesiredCount);
+
                 productsToMigrate.push({
                     type: 'subscription_product',
                     data: {
@@ -381,7 +387,7 @@ export default {
                                     payment_frequency_interval: mapIntervalUnit(renewalIntervalUnit),
                                     payment_frequency_count: renewalIntervalQuantity,
                                     subscription_period_interval: mapIntervalUnit(renewalIntervalUnit),
-                                    subscription_period_count: 120  // 10 years for evergreen subscriptions
+                                    subscription_period_count: subscriptionPeriodCount
                         },
                         brand_id: brand_id
                     },

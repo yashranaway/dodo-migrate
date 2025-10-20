@@ -351,7 +351,7 @@ async function migrateProducts(polar: Polar, client: DodoPayments, organization_
                                 billing_period: billingPeriod,
                                 payment_frequency_count: 1,
                                 payment_frequency_interval: intervalUnit,
-                                subscription_period_count: 120,  // 10 years for evergreen subscriptions
+                                subscription_period_count: Math.min(120, intervalUnit === 'Year' ? 20 : intervalUnit === 'Month' ? 240 : intervalUnit === 'Week' ? 1040 : 7300),
                                 subscription_period_interval: intervalUnit
                             },
                             brand_id: brand_id
