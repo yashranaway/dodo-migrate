@@ -342,23 +342,31 @@ export default {
             const subscriptionPrices = productPrices.filter(p => p.attributes.category === 'subscription');
             const oneTimePrices = productPrices.filter(p => p.attributes.category === 'one_time');
 
-            // Priority: If product has subscription prices, only create subscription product
-            // Only create one-time product if there are NO subscription prices
-            if (subscriptionPrices.length > 0) {
-                // This is a subscription product - only create subscription version
-                const price = subscriptionPrices[0]; // Take the first subscription price
+            // Filter for valid subscription prices (supported intervals and valid price)
+            const validSubscriptionPrices = subscriptionPrices.filter(price => {
                 const unitPriceCents = convertToCents(price.attributes.unit_price ?? undefined, price.attributes.unit_price_decimal ?? undefined);
+                const renewalIntervalUnit = price.attributes.renewal_interval_unit || 'month';
+                const billingPeriod: 'monthly' | 'yearly' | null = 
+                    renewalIntervalUnit.toLowerCase() === 'month' ? 'monthly' :
+                    renewalIntervalUnit.toLowerCase() === 'year' ? 'yearly' : null;
                 
-                if (unitPriceCents > 0) {
-                    const renewalIntervalUnit = price.attributes.renewal_interval_unit || 'month';
-                    const renewalIntervalQuantity = price.attributes.renewal_interval_quantity || 1;
-                    
+                return unitPriceCents > 0 && billingPeriod !== null;
+            });
+
+            // Priority: If product has valid subscription prices, create subscription product
+            // Otherwise, fall back to one-time product if available
+            if (validSubscriptionPrices.length > 0) {
+                // This is a valid subscription product - create subscription version
+                const price = validSubscriptionPrices[0]; // Take the first valid subscription price
+                const unitPriceCents = convertToCents(price.attributes.unit_price ?? undefined, price.attributes.unit_price_decimal ?? undefined);
+                const renewalIntervalUnit = price.attributes.renewal_interval_unit || 'month';
+                const renewalIntervalQuantity = price.attributes.renewal_interval_quantity || 1;
+                
                 const billingPeriod: 'monthly' | 'yearly' | null = 
                         renewalIntervalUnit.toLowerCase() === 'month' ? 'monthly' :
                         renewalIntervalUnit.toLowerCase() === 'year' ? 'yearly' : null;
 
-                    if (billingPeriod) {
-                        productsToMigrate.push({
+                productsToMigrate.push({
                     type: 'subscription_product',
                     data: {
                         name: product.attributes.name,
@@ -379,9 +387,7 @@ export default {
                     },
                     originalProductId: product.id
                 });
-                        console.log(`[LOG] Created subscription product for: ${product.attributes.name} (${currency} ${(unitPriceCents/100).toFixed(2)}/${renewalIntervalUnit})`);
-                    }
-                }
+                console.log(`[LOG] Created subscription product for: ${product.attributes.name} (${currency} ${(unitPriceCents/100).toFixed(2)}/${renewalIntervalUnit})`);
             } else if (oneTimePrices.length > 0) {
                 // This is a one-time product - only create one-time version
                 const price = oneTimePrices[0]; // Take the first one-time price
@@ -408,9 +414,11 @@ export default {
                 }
             }
 
-            // If no prices found, skip this product
-            if (subscriptionPrices.length === 0 && oneTimePrices.length === 0) {
+            // If no valid prices found, skip this product
+            if (validSubscriptionPrices.length === 0 && oneTimePrices.length === 0) {
                 console.log(`[WARNING] No valid prices found for product ${product.attributes.name}, skipping`);
+            } else if (subscriptionPrices.length > 0 && validSubscriptionPrices.length === 0) {
+                console.log(`[WARNING] Product ${product.attributes.name} has subscription prices but none with supported intervals (monthly/yearly), falling back to one-time product`);
             }
         }
 
@@ -537,28 +545,29 @@ export default {
                                     continue;
                                 }
                                 
-                                // Transform subscription data
-								const dodoSubscription = {
-									billing: {
-										city: 'Unknown',
-										country: 'US',
-										state: 'Unknown',
-										street: 'Unknown',
-										zipcode: '00000'
-									},
-									customer: {
-										email: subscription.attributes.user_email,
-										name: subscription.attributes.user_name || subscription.attributes.user_email
-									},
-									product_id: mappedProductId,
-									quantity: 1,
-									metadata: {
-										lemon_squeezy_subscription_id: subscription.id,
-										lemon_squeezy_customer_id: String(subscription.attributes.customer_id),
-										original_status: subscription.attributes.status,
-										billing_anchor: String(subscription.attributes.billing_anchor)
-									}
-								};
+						// Transform subscription data
+						const dodoSubscription = {
+							billing: {
+								city: 'Unknown',
+								country: 'US',
+								state: 'Unknown',
+								street: 'Unknown',
+								zipcode: '00000'
+							},
+							customer: {
+								email: subscription.attributes.user_email,
+								name: subscription.attributes.user_name || subscription.attributes.user_email
+							},
+							product_id: mappedProductId,
+							quantity: 1,
+							...(mappedPriceId && { price_id: mappedPriceId }),
+							metadata: {
+								lemon_squeezy_subscription_id: subscription.id,
+								lemon_squeezy_customer_id: String(subscription.attributes.customer_id),
+								original_status: subscription.attributes.status,
+								billing_anchor: String(subscription.attributes.billing_anchor)
+							}
+						};
 								
 								try {
 									const created: any = await (client as any).subscriptions.create(dodoSubscription as any);
