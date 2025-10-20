@@ -381,7 +381,7 @@ export default {
                                     payment_frequency_interval: mapIntervalUnit(renewalIntervalUnit),
                                     payment_frequency_count: renewalIntervalQuantity,
                                     subscription_period_interval: mapIntervalUnit(renewalIntervalUnit),
-                                    subscription_period_count: renewalIntervalQuantity
+                                    subscription_period_count: 120  // 10 years for evergreen subscriptions
                         },
                         brand_id: brand_id
                     },
