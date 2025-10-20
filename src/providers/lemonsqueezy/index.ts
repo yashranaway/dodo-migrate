@@ -380,8 +380,8 @@ export default {
                             billing_period: billingPeriod,
                                     payment_frequency_interval: mapIntervalUnit(renewalIntervalUnit),
                                     payment_frequency_count: renewalIntervalQuantity,
-                                    subscription_period_interval: mapIntervalUnit(renewalIntervalUnit)
-                                    // subscription_period_count omitted for evergreen subscriptions
+                                    subscription_period_interval: mapIntervalUnit(renewalIntervalUnit),
+                                    subscription_period_count: renewalIntervalQuantity
                         },
                         brand_id: brand_id
                     },
@@ -489,14 +489,26 @@ export default {
             
             try {
                 console.log('[LOG] Fetching subscriptions from Lemon Squeezy...');
-                const subscriptionsResponse = await listSubscriptions();
-                
-                if (subscriptionsResponse.error || subscriptionsResponse.statusCode !== 200) {
-                    console.log('[ERROR] Failed to fetch subscriptions from Lemon Squeezy!\n', subscriptionsResponse.error);
-                    process.exit(1);
+                const allSubscriptions: any[] = [];
+                {
+                  let page = 1;
+                  const size = 100;
+                  while (true) {
+                    const resp = await listSubscriptions({ page: { number: page, size } } as any);
+                    if (resp.error || resp.statusCode !== 200) {
+                      console.log('[ERROR] Failed to fetch subscriptions from Lemon Squeezy!\n', resp.error);
+                      process.exit(1);
+                    }
+                    const pageData = resp.data?.data || [];
+                    allSubscriptions.push(...pageData);
+                    const meta = resp.data?.meta as any;
+                    const current = meta?.page?.currentPage ?? meta?.page?.current_page ?? page;
+                    const last = meta?.page?.lastPage ?? meta?.page?.last_page ?? current;
+                    if (current >= last || pageData.length < size) break;
+                    page++;
+                  }
                 }
-                
-                const rawSubscriptions: any[] = subscriptionsResponse.data?.data || [];
+                const rawSubscriptions: any[] = allSubscriptions;
                 console.log(`[LOG] Found ${rawSubscriptions.length} subscriptions in Lemon Squeezy`);
                 
                 const activeSubscriptions = rawSubscriptions.filter(sub => 
@@ -552,7 +564,14 @@ export default {
                                     if (customerResponse.error || customerResponse.statusCode !== 200) {
                                         console.log(`[WARNING] Failed to fetch customer data for ${subscription.attributes.user_email}, using fallback billing address`);
                                     } else {
-                                        customerData = customerResponse.data || {};
+                                        const attrs = customerResponse?.data?.data?.attributes || {};
+                                        customerData = {
+                                            city: (attrs as any).city,
+                                            country: (attrs as any).country,
+                                            region: (attrs as any).region,
+                                            address_line_1: (attrs as any).address_line_1 || (attrs as any).address,
+                                            postal_code: (attrs as any).postal_code || (attrs as any).zip
+                                        };
                                     }
                                 } catch (error: any) {
                                     console.log(`[WARNING] Error fetching customer data for ${subscription.attributes.user_email}: ${error.message || error}, using fallback billing address`);
@@ -618,13 +637,25 @@ export default {
         // -----------------------------
 
         console.log('\n[LOG] Fetching discounts (coupons) from Lemon Squeezy...');
-        const discountsResponse = await listDiscounts();
-        if (discountsResponse.error || discountsResponse.statusCode !== 200) {
-            console.log('[ERROR] Failed to fetch discounts from Lemon Squeezy!\n', discountsResponse.error);
-            process.exit(1);
+        const rawDiscounts: any[] = [];
+        {
+            let page = 1;
+            const size = 100;
+            while (true) {
+                const resp = await listDiscounts({ page: { number: page, size } } as any);
+                if (resp.error || resp.statusCode !== 200) {
+                    console.log('[ERROR] Failed to fetch discounts from Lemon Squeezy!\n', resp.error);
+                    process.exit(1);
+                }
+                const pageData = resp.data?.data || [];
+                rawDiscounts.push(...pageData);
+                const meta = resp.data?.meta as any;
+                const current = meta?.page?.currentPage ?? meta?.page?.current_page ?? page;
+                const last = meta?.page?.lastPage ?? meta?.page?.last_page ?? current;
+                if (current >= last || pageData.length < size) break;
+                page++;
+            }
         }
-
-        const rawDiscounts: any[] = discountsResponse.data?.data || [];
         console.log(`[LOG] Found ${rawDiscounts.length} discounts in Lemon Squeezy`);
 
         const publishedDiscounts = rawDiscounts.filter((d: any) => {
