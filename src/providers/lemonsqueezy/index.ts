@@ -526,8 +526,8 @@ export default {
                                 console.log(`[LOG] Processing subscription: ${subscription.attributes.product_name} for ${subscription.attributes.user_email}`);
                                 
 						// Find matching migrated product using product ID for reliable lookup
-						const productKey = `${subscription.attributes.product_id}_subscription_product`;
-						const mapped = (typeof createdProductsMap !== 'undefined') ? (createdProductsMap as any).get(productKey) : undefined;
+						const productKey = `${String(subscription.attributes.product_id)}_subscription_product`;
+						const mapped = createdProductsMap.get(productKey);
 						const mappedProductId: string | undefined = mapped?.productId;
 						const mappedPriceId: string | undefined = mapped?.priceId;
                                 
