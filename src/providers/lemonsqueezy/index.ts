@@ -1,4 +1,4 @@
-import { listProducts, listDiscounts, lemonSqueezySetup, getStore, Store, listPrices, listSubscriptions, listVariants } from '@lemonsqueezy/lemonsqueezy.js';
+import { listProducts, listDiscounts, lemonSqueezySetup, getStore, Store, listPrices, listSubscriptions, listVariants, getCustomer } from '@lemonsqueezy/lemonsqueezy.js';
 import DodoPayments from 'dodopayments';
 import { input, select } from '@inquirer/prompts';
 
@@ -57,7 +57,7 @@ interface Price {
     type: "prices";
     id: string;
     attributes: {
-        variant_id: number;
+        variant_id: number | null;
         category: "one_time" | "subscription" | "lead_magnet" | "pwyw";
         unit_price: number | null;
         unit_price_decimal: string | null;
@@ -545,14 +545,27 @@ export default {
                                     continue;
                                 }
                                 
+                                // Fetch customer data for billing address
+                                let customerData: any = {};
+                                try {
+                                    const customerResponse = await getCustomer(subscription.attributes.customer_id);
+                                    if (customerResponse.error || customerResponse.statusCode !== 200) {
+                                        console.log(`[WARNING] Failed to fetch customer data for ${subscription.attributes.user_email}, using fallback billing address`);
+                                    } else {
+                                        customerData = customerResponse.data || {};
+                                    }
+                                } catch (error: any) {
+                                    console.log(`[WARNING] Error fetching customer data for ${subscription.attributes.user_email}: ${error.message || error}, using fallback billing address`);
+                                }
+                                
 						// Transform subscription data
 						const dodoSubscription = {
 							billing: {
-								city: 'Unknown',
-								country: 'US',
-								state: 'Unknown',
-								street: 'Unknown',
-								zipcode: '00000'
+								city: customerData.city || 'Unknown',
+								country: customerData.country || 'US',
+								state: customerData.region || 'Unknown',
+								street: customerData.address_line_1 || customerData.address || 'Unknown',
+								zipcode: customerData.postal_code || customerData.zip || '00000'
 							},
 							customer: {
 								email: subscription.attributes.user_email,
