@@ -36,13 +36,13 @@ export default {
             });
     },
     handler: async (argv: any) => {
-        const PROVIDER_API_KEY = argv['provider-api-key'] || await input({ 
-            message: 'Enter your Stripe Secret API Key (sk_...):', 
-            required: true 
+        const PROVIDER_API_KEY = argv['provider-api-key'] || await input({
+            message: 'Enter your Stripe Secret API Key (sk_...):',
+            required: true
         });
-        const DODO_API_KEY = argv['dodo-api-key'] || await input({ 
-            message: 'Enter your Dodo Payments API Key:', 
-            required: true 
+        const DODO_API_KEY = argv['dodo-api-key'] || await input({
+            message: 'Enter your Dodo Payments API Key:',
+            required: true
         });
         const MODE = argv['mode'] || await select({
             message: 'Select Dodo Payments environment:',
@@ -121,11 +121,11 @@ export default {
 
 async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: string) {
     console.log('\n[LOG] Starting products migration...');
-    
+
     try {
-        const products = await stripe.products.list({ 
+        const products = await stripe.products.list({
             limit: 100,
-            active: true 
+            active: true
         });
 
         if (products.data.length === 0) {
@@ -150,16 +150,16 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
 
             for (const price of prices.data) {
                 const isRecurring = price.type === 'recurring';
-                
+
                 if (isRecurring) {
                     const interval = price.recurring?.interval;
                     const intervalCount = price.recurring?.interval_count || 1;
-                    
+
                     if (interval !== 'month' && interval !== 'year') {
                         console.log(`[ERROR] Unsupported billing interval "${interval}" for product ${product.id}; skipping to avoid creating a wrong plan`);
                         continue;
                     }
-                    
+
                     // Map interval to Dodo format
                     const intervalMap: Record<string, string> = {
                         'day': 'Day',
@@ -168,7 +168,7 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
                         'year': 'Year'
                     };
                     const paymentFrequencyInterval = intervalMap[interval];
-                    
+
                     ProductsToMigrate.push({
                         type: 'subscription_product',
                         data: {
@@ -266,10 +266,10 @@ async function migrateProducts(stripe: Stripe, client: DodoPayments, brand_id: s
 
 async function migrateCoupons(stripe: Stripe, client: DodoPayments, brand_id: string) {
     console.log('\n[LOG] Starting coupons migration...');
-    
+
     try {
-        const coupons = await stripe.coupons.list({ 
-            limit: 100 
+        const coupons = await stripe.coupons.list({
+            limit: 100
         });
 
         if (coupons.data.length === 0) {
@@ -349,10 +349,10 @@ async function migrateCoupons(stripe: Stripe, client: DodoPayments, brand_id: st
 
 async function migrateCustomers(stripe: Stripe, client: DodoPayments, brand_id: string) {
     console.log('\n[LOG] Starting customers migration...');
-    
+
     try {
-        const customers = await stripe.customers.list({ 
-            limit: 100 
+        const customers = await stripe.customers.list({
+            limit: 100
         });
 
         if (customers.data.length === 0) {
