@@ -257,39 +257,78 @@ export default {
         // Product Migration
         // -----------------------------
         
-        console.log('[LOG] Fetching products from Lemon Squeezy...');
-        const productsResponse = await listProducts();
-        if (productsResponse.error || productsResponse.statusCode !== 200) {
-            console.log("[ERROR] Failed to fetch products from Lemon Squeezy!\n", productsResponse.error);
-            process.exit(1);
-        }
-        
-        const products: any[] = productsResponse.data.data;
-        console.log(`[LOG] Found ${products.length} products in Lemon Squeezy`);
+		console.log('[LOG] Fetching products from Lemon Squeezy...');
+		const products: any[] = [];
+		{
+			let page = 1;
+			const size = 100;
+			while (true) {
+				const resp = await listProducts({ page: { number: page, size } } as any);
+				if (resp.error || resp.statusCode !== 200) {
+					console.log("[ERROR] Failed to fetch products from Lemon Squeezy!\n", resp.error);
+					process.exit(1);
+				}
+				const pageData = resp.data?.data || [];
+				products.push(...pageData);
+				const meta = resp.data?.meta as any;
+				const current = meta?.page?.currentPage ?? meta?.page?.current_page ?? page;
+				const last = meta?.page?.lastPage ?? meta?.page?.last_page ?? current;
+				if (current >= last || pageData.length < size) break;
+				page++;
+			}
+		}
+		console.log(`[LOG] Found ${products.length} products in Lemon Squeezy`);
 
         // Fetch all prices
-        console.log('[LOG] Fetching prices from Lemon Squeezy...');
-                        const pricesResponse = await listPrices();
-                        if (pricesResponse.error || pricesResponse.statusCode !== 200) {
-            console.log("[ERROR] Failed to fetch prices from Lemon Squeezy!\n", pricesResponse.error);
-            process.exit(1);
-        }
-        
-        const prices: any[] = pricesResponse.data.data;
-        console.log(`[LOG] Found ${prices.length} prices in Lemon Squeezy`);
+		console.log('[LOG] Fetching prices from Lemon Squeezy...');
+		const prices: any[] = [];
+		{
+			let page = 1;
+			const size = 100;
+			while (true) {
+				const resp = await listPrices({ page: { number: page, size } } as any);
+				if (resp.error || resp.statusCode !== 200) {
+					console.log("[ERROR] Failed to fetch prices from Lemon Squeezy!\n", resp.error);
+					process.exit(1);
+				}
+				const pageData = resp.data?.data || [];
+				prices.push(...pageData);
+				const meta = resp.data?.meta as any;
+				const current = meta?.page?.currentPage ?? meta?.page?.current_page ?? page;
+				const last = meta?.page?.lastPage ?? meta?.page?.last_page ?? current;
+				if (current >= last || pageData.length < size) break;
+				page++;
+			}
+		}
+		console.log(`[LOG] Found ${prices.length} prices in Lemon Squeezy`);
 
         // Fetch all variants (to map product -> variant -> price reliably)
-        console.log('[LOG] Fetching variants from Lemon Squeezy...');
-        const variantsResponse = await listVariants();
-        if (variantsResponse.error || variantsResponse.statusCode !== 200) {
-            console.log("[ERROR] Failed to fetch variants from Lemon Squeezy!\n", variantsResponse.error);
-            process.exit(1);
-        }
-        const variants: any[] = variantsResponse.data.data;
-        console.log(`[LOG] Found ${variants.length} variants in Lemon Squeezy`);
+		console.log('[LOG] Fetching variants from Lemon Squeezy...');
+		const variants: any[] = [];
+		{
+			let page = 1;
+			const size = 100;
+			while (true) {
+				const resp = await listVariants({ page: { number: page, size } } as any);
+				if (resp.error || resp.statusCode !== 200) {
+					console.log("[ERROR] Failed to fetch variants from Lemon Squeezy!\n", resp.error);
+					process.exit(1);
+				}
+				const pageData = resp.data?.data || [];
+				variants.push(...pageData);
+				const meta = resp.data?.meta as any;
+				const current = meta?.page?.currentPage ?? meta?.page?.current_page ?? page;
+				const last = meta?.page?.lastPage ?? meta?.page?.last_page ?? current;
+				if (current >= last || pageData.length < size) break;
+				page++;
+			}
+		}
+		console.log(`[LOG] Found ${variants.length} variants in Lemon Squeezy`);
 
-        // Process products and create in Dodo
+		// Process products and create in Dodo
         const productsToMigrate: { type: 'one_time_product' | 'subscription_product', data: any }[] = [];
+        // Store created Dodo product/price IDs for subscription mapping later
+        const createdProductsMap = new Map<string, { productId: string, priceId?: string }>();
         
         for (const product of products) {
             const currency = await getStoreCurrency(product.attributes.store_id);
@@ -390,15 +429,28 @@ export default {
             ],
         });
 
-        if (migrateProducts === 'yes') {
+		if (migrateProducts === 'yes') {
             let successCount = 0;
             let errorCount = 0;
+			// Map filled as products are created
             
-            for (let product of productsToMigrate) {
+			for (let product of productsToMigrate) {
                 console.log();
-                try {
-                    const createdProduct = await client.products.create(product.data);
-                    console.log(`[LOG] Migration for product: ${createdProduct.name} completed (Dodo Payments product ID: ${createdProduct.product_id})`);
+				try {
+					const createdProduct: any = await (client as any).products.create(product.data);
+					const productId: string = createdProduct.product_id || createdProduct.id;
+					let priceId: string | undefined =
+						createdProduct.price_id ||
+						createdProduct.default_price_id ||
+						createdProduct.price?.price_id ||
+						(createdProduct.prices && createdProduct.prices[0]?.price_id) ||
+						undefined;
+
+					// Store mapping for subscriptions; key ties back to name and type used later
+					const key = `${product.data.name}_${product.type}`;
+					createdProductsMap.set(key, { productId, priceId });
+
+					console.log(`[LOG] Migration for product: ${createdProduct.name} completed (Dodo Payments product ID: ${productId}${priceId ? ", price ID: " + priceId : ''})`);
                         successCount++;
                 } catch (error: any) {
                     errorCount++;
@@ -461,24 +513,21 @@ export default {
                     if (migrateSubscriptions === 'yes') {
                         console.log('\n[LOG] Migrating subscriptions...');
                         
-                        // Build product mapping from migrated products
-                        const productMapping = new Map<string, string>();
-                        for (const migratedProduct of productsToMigrate) {
-                            // Map by product name for now - in production you'd want more sophisticated mapping
-                            const key = `${migratedProduct.data.name}_${migratedProduct.type}`;
-                            productMapping.set(key, migratedProduct.data.name); // This would be the actual Dodo product ID
-                        }
+						// Build product mapping from actually created Dodo products
+						// createdProductsMap was populated during product creation
                         
                         let subscriptionSuccessCount = 0;
                         let subscriptionErrorCount = 0;
                         
-                        for (const subscription of activeSubscriptions) {
+						for (const subscription of activeSubscriptions) {
                             try {
                                 console.log(`[LOG] Processing subscription: ${subscription.attributes.product_name} for ${subscription.attributes.user_email}`);
                                 
                                 // Find matching migrated product
-                                const productKey = `${subscription.attributes.product_name}_subscription_product`;
-                                const mappedProductId = productMapping.get(productKey);
+								const productKey = `${subscription.attributes.product_name}_subscription_product`;
+								const mapped = (typeof createdProductsMap !== 'undefined') ? (createdProductsMap as any).get(productKey) : undefined;
+								const mappedProductId: string | undefined = mapped?.productId;
+								const mappedPriceId: string | undefined = mapped?.priceId;
                                 
                                 if (!mappedProductId) {
                                     console.log(`[WARNING] No migrated product found for subscription: ${subscription.attributes.product_name}. Skipping.`);
@@ -487,30 +536,37 @@ export default {
                                 }
                                 
                                 // Transform subscription data
-                                const dodoSubscription = {
-                                    customer_email: subscription.attributes.user_email,
-                                    product_id: mappedProductId,
-                                    price_id: mappedProductId, // Same as product_id for now
-                                    status: mapSubscriptionStatus(subscription.attributes.status),
-                                    current_period_start: new Date(subscription.attributes.created_at),
-                                    current_period_end: new Date(subscription.attributes.renews_at),
-                                    cancel_at_period_end: subscription.attributes.cancelled,
-                                    trial_end: subscription.attributes.trial_ends_at 
-                                        ? new Date(subscription.attributes.trial_ends_at) 
-                                        : undefined,
-                                    metadata: {
-                                        lemon_squeezy_subscription_id: subscription.id,
-                                        lemon_squeezy_customer_id: subscription.attributes.customer_id.toString(),
-                                        original_status: subscription.attributes.status,
-                                        billing_anchor: subscription.attributes.billing_anchor
-                                    }
-                                };
-                                
-                                // Note: In a real implementation, you would create the subscription in Dodo here
-                                // await client.subscriptions.create(dodoSubscription);
-                                
-                                console.log(`[LOG] Subscription migration simulated for: ${subscription.attributes.product_name} (Product ID: ${mappedProductId})`);
-                                subscriptionSuccessCount++;
+								const dodoSubscription = {
+									billing: {
+										city: 'Unknown',
+										country: 'US',
+										state: 'Unknown',
+										street: 'Unknown',
+										zipcode: '00000'
+									},
+									customer: {
+										email: subscription.attributes.user_email,
+										name: subscription.attributes.user_name || subscription.attributes.user_email
+									},
+									product_id: mappedProductId,
+									quantity: 1,
+									metadata: {
+										lemon_squeezy_subscription_id: subscription.id,
+										lemon_squeezy_customer_id: String(subscription.attributes.customer_id),
+										original_status: subscription.attributes.status,
+										billing_anchor: String(subscription.attributes.billing_anchor)
+									}
+								};
+								
+								try {
+									const created: any = await (client as any).subscriptions.create(dodoSubscription as any);
+									console.log(`[LOG] Subscription created: ${subscription.attributes.user_email} -> product ${mappedProductId} (Dodo subscription ID: ${created.subscription_id || 'unknown'})`);
+									subscriptionSuccessCount++;
+								} catch (e: any) {
+									subscriptionErrorCount++;
+									console.log(`[ERROR] Failed to create subscription in Dodo for ${subscription.attributes.user_email}: ${e?.message || e}`);
+									continue;
+								}
                                 
                             } catch (error: any) {
                                 subscriptionErrorCount++;
