@@ -325,8 +325,8 @@ export default {
 		}
 		console.log(`[LOG] Found ${variants.length} variants in Lemon Squeezy`);
 
-		// Process products and create in Dodo
-        const productsToMigrate: { type: 'one_time_product' | 'subscription_product', data: any }[] = [];
+        // Process products and create in Dodo
+        const productsToMigrate: { type: 'one_time_product' | 'subscription_product', data: any, originalProductId: string }[] = [];
         // Store created Dodo product/price IDs for subscription mapping later
         const createdProductsMap = new Map<string, { productId: string, priceId?: string }>();
         
@@ -372,11 +372,12 @@ export default {
                             billing_period: billingPeriod,
                                     payment_frequency_interval: mapIntervalUnit(renewalIntervalUnit),
                                     payment_frequency_count: renewalIntervalQuantity,
-                                    subscription_period_interval: mapIntervalUnit(renewalIntervalUnit),
-                                    subscription_period_count: renewalIntervalQuantity
+                                    subscription_period_interval: mapIntervalUnit(renewalIntervalUnit)
+                                    // subscription_period_count omitted for evergreen subscriptions
                         },
                         brand_id: brand_id
-                    }
+                    },
+                    originalProductId: product.id
                 });
                         console.log(`[LOG] Created subscription product for: ${product.attributes.name} (${currency} ${(unitPriceCents/100).toFixed(2)}/${renewalIntervalUnit})`);
                     }
@@ -400,7 +401,8 @@ export default {
                             type: 'one_time_price'
                         },
                         brand_id: brand_id
-                    }
+                    },
+                    originalProductId: product.id
                 });
                     console.log(`[LOG] Created one-time product for: ${product.attributes.name} (${currency} ${(unitPriceCents/100).toFixed(2)})`);
                 }
@@ -446,8 +448,8 @@ export default {
 						(createdProduct.prices && createdProduct.prices[0]?.price_id) ||
 						undefined;
 
-					// Store mapping for subscriptions; key ties back to name and type used later
-					const key = `${product.data.name}_${product.type}`;
+					// Store mapping for subscriptions; key uses product ID for reliable lookup
+					const key = `${product.originalProductId}_${product.type}`;
 					createdProductsMap.set(key, { productId, priceId });
 
 					console.log(`[LOG] Migration for product: ${createdProduct.name} completed (Dodo Payments product ID: ${productId}${priceId ? ", price ID: " + priceId : ''})`);
@@ -523,11 +525,11 @@ export default {
                             try {
                                 console.log(`[LOG] Processing subscription: ${subscription.attributes.product_name} for ${subscription.attributes.user_email}`);
                                 
-                                // Find matching migrated product
-								const productKey = `${subscription.attributes.product_name}_subscription_product`;
-								const mapped = (typeof createdProductsMap !== 'undefined') ? (createdProductsMap as any).get(productKey) : undefined;
-								const mappedProductId: string | undefined = mapped?.productId;
-								const mappedPriceId: string | undefined = mapped?.priceId;
+						// Find matching migrated product using product ID for reliable lookup
+						const productKey = `${subscription.attributes.product_id}_subscription_product`;
+						const mapped = (typeof createdProductsMap !== 'undefined') ? (createdProductsMap as any).get(productKey) : undefined;
+						const mappedProductId: string | undefined = mapped?.productId;
+						const mappedPriceId: string | undefined = mapped?.priceId;
                                 
                                 if (!mappedProductId) {
                                     console.log(`[WARNING] No migrated product found for subscription: ${subscription.attributes.product_name}. Skipping.`);
