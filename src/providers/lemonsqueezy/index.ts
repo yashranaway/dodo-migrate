@@ -115,13 +115,16 @@ function convertToTrialDays(interval: string, count: number): number {
 }
 
 function convertToCents(unitPrice: number | undefined, unitPriceDecimal: string | undefined): number {
+    // Prefer unit_price if present and valid (already in cents)
     if (unitPrice && unitPrice > 0) {
         return Math.round(unitPrice);
     }
     
+    // Fall back to unit_price_decimal (string with decimal value)
     if (unitPriceDecimal) {
         const decimalValue = parseFloat(unitPriceDecimal);
         if (!isNaN(decimalValue) && decimalValue > 0) {
+            // Convert decimal to cents (multiply by 100 and round)
             return Math.round(decimalValue * 100);
         }
     }
@@ -239,11 +242,15 @@ export default {
                 const storeResponse = await getStore(storeId);
                 if (storeResponse.error || storeResponse.statusCode !== 200) {
                     console.log(`[ERROR] Failed to fetch store data for store ID ${storeId}\n`, storeResponse.error);
-                    return 'USD'; // fallback
+                    throw new Error(`Cannot determine currency for store ${storeId}. Migration cannot continue without proper currency information.`);
                 }
                 StoresData[storeId] = storeResponse.data;
             }
-            return StoresData[storeId].data.attributes.currency as string;
+            const currency = StoresData[storeId].data.attributes.currency as string;
+            if (!currency) {
+                throw new Error(`Store ${storeId} has no currency information. Migration cannot continue.`);
+            }
+            return currency;
         };
 
         // -----------------------------
@@ -307,32 +314,32 @@ export default {
                     const renewalIntervalUnit = price.attributes.renewal_interval_unit || 'month';
                     const renewalIntervalQuantity = price.attributes.renewal_interval_quantity || 1;
                     
-                    const billingPeriod: 'monthly' | 'yearly' | null = 
+                const billingPeriod: 'monthly' | 'yearly' | null = 
                         renewalIntervalUnit.toLowerCase() === 'month' ? 'monthly' :
                         renewalIntervalUnit.toLowerCase() === 'year' ? 'yearly' : null;
 
                     if (billingPeriod) {
                         productsToMigrate.push({
-                            type: 'subscription_product',
-                            data: {
-                                name: product.attributes.name,
-                                tax_category: 'saas',
-                                price: {
+                    type: 'subscription_product',
+                    data: {
+                        name: product.attributes.name,
+                        tax_category: 'saas',
+                        price: {
                                     currency: currency as any,
-                                    price: unitPriceCents,
-                                    discount: 0,
-                                    purchasing_power_parity: false,
-                                    type: 'recurring_price',
-                                    billing_period: billingPeriod,
+                            price: unitPriceCents,
+                            discount: 0,
+                            purchasing_power_parity: false,
+                            type: 'recurring_price',
+                            billing_period: billingPeriod,
                                     payment_frequency_interval: mapIntervalUnit(renewalIntervalUnit),
                                     payment_frequency_count: renewalIntervalQuantity,
                                     subscription_period_interval: mapIntervalUnit(renewalIntervalUnit),
                                     subscription_period_count: renewalIntervalQuantity
-                                },
-                                brand_id: brand_id
-                            }
-                        });
-                        console.log(`[LOG] Created subscription product for: ${product.attributes.name} (₹${(unitPriceCents/100).toFixed(2)}/${renewalIntervalUnit})`);
+                        },
+                        brand_id: brand_id
+                    }
+                });
+                        console.log(`[LOG] Created subscription product for: ${product.attributes.name} (${currency} ${(unitPriceCents/100).toFixed(2)}/${renewalIntervalUnit})`);
                     }
                 }
             } else if (oneTimePrices.length > 0) {
@@ -342,21 +349,21 @@ export default {
                 
                 if (unitPriceCents > 0) {
                     productsToMigrate.push({
-                        type: 'one_time_product',
-                        data: {
-                            name: product.attributes.name,
-                            tax_category: 'saas',
-                            price: {
+                    type: 'one_time_product',
+                    data: {
+                        name: product.attributes.name,
+                        tax_category: 'saas',
+                        price: {
                                 currency: currency as any,
-                                price: unitPriceCents,
-                                discount: 0,
-                                purchasing_power_parity: false,
-                                type: 'one_time_price'
-                            },
-                            brand_id: brand_id
-                        }
-                    });
-                    console.log(`[LOG] Created one-time product for: ${product.attributes.name} (₹${(unitPriceCents/100).toFixed(2)})`);
+                            price: unitPriceCents,
+                            discount: 0,
+                            purchasing_power_parity: false,
+                            type: 'one_time_price'
+                        },
+                        brand_id: brand_id
+                    }
+                });
+                    console.log(`[LOG] Created one-time product for: ${product.attributes.name} (${currency} ${(unitPriceCents/100).toFixed(2)})`);
                 }
             }
 
@@ -454,6 +461,14 @@ export default {
                     if (migrateSubscriptions === 'yes') {
                         console.log('\n[LOG] Migrating subscriptions...');
                         
+                        // Build product mapping from migrated products
+                        const productMapping = new Map<string, string>();
+                        for (const migratedProduct of productsToMigrate) {
+                            // Map by product name for now - in production you'd want more sophisticated mapping
+                            const key = `${migratedProduct.data.name}_${migratedProduct.type}`;
+                            productMapping.set(key, migratedProduct.data.name); // This would be the actual Dodo product ID
+                        }
+                        
                         let subscriptionSuccessCount = 0;
                         let subscriptionErrorCount = 0;
                         
@@ -461,11 +476,21 @@ export default {
                             try {
                                 console.log(`[LOG] Processing subscription: ${subscription.attributes.product_name} for ${subscription.attributes.user_email}`);
                                 
+                                // Find matching migrated product
+                                const productKey = `${subscription.attributes.product_name}_subscription_product`;
+                                const mappedProductId = productMapping.get(productKey);
+                                
+                                if (!mappedProductId) {
+                                    console.log(`[WARNING] No migrated product found for subscription: ${subscription.attributes.product_name}. Skipping.`);
+                                    subscriptionErrorCount++;
+                                    continue;
+                                }
+                                
                                 // Transform subscription data
                                 const dodoSubscription = {
                                     customer_email: subscription.attributes.user_email,
-                                    product_id: 'mapped_product_id', // Would need actual mapping
-                                    price_id: 'mapped_price_id', // Would need actual mapping
+                                    product_id: mappedProductId,
+                                    price_id: mappedProductId, // Same as product_id for now
                                     status: mapSubscriptionStatus(subscription.attributes.status),
                                     current_period_start: new Date(subscription.attributes.created_at),
                                     current_period_end: new Date(subscription.attributes.renews_at),
@@ -484,7 +509,7 @@ export default {
                                 // Note: In a real implementation, you would create the subscription in Dodo here
                                 // await client.subscriptions.create(dodoSubscription);
                                 
-                                console.log(`[LOG] Subscription migration simulated for: ${subscription.attributes.product_name}`);
+                                console.log(`[LOG] Subscription migration simulated for: ${subscription.attributes.product_name} (Product ID: ${mappedProductId})`);
                                 subscriptionSuccessCount++;
                                 
                             } catch (error: any) {
